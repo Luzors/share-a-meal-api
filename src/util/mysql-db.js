@@ -15,4 +15,14 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-module.exports = pool;
+async function exQuery(query) {
+  try {
+    const results = await pool.promise().query(query);
+    return results[0];
+  } catch (error) {
+    console.error('Error executing query:', error);
+    throw error;
+  }
+}
+
+module.exports = { exQuery };
