@@ -8,6 +8,11 @@
     "mysql": "^2.18.1",
     "mysql2": "^3.4.2",
     "node": "^20.2.0",
+    "nodemon": "^1.19.4",
     "tracer": "^1.1.6"
+  },
+  "scripts": {
+    "dev": "nodemon index.js",
+    "test": "cross-env NODE_ENV=test mocha test/**/*.test.js --exit"
   }
 }

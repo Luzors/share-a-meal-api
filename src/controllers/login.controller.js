@@ -20,7 +20,7 @@ const loginController = {
         let email = req.body.emailAdress;
         if(!email || !req.body.password || !emailChecker(email)){
                 console.log('Empty email or password');
-                return res.status(401).json({ message: 'Empty email or password' });
+                return res.status(401).json({ message: 'Empty or invalid email or password' });
         }
       try {
         const { emailAdress, password } = req.body;
@@ -46,8 +46,8 @@ const loginController = {
                 data: token
                  });
             } else {
-              console.log('Invalid email or password');
-              return res.status(401).json({ message: 'Invalid email or password' });
+              console.log('Incorrect email or password');
+              return res.status(401).json({ message: 'Incorrect email or password' });
             }
 
       } catch (err) {
