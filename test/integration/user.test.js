@@ -14,7 +14,7 @@ const CLEAR_DB =
     'INSERT INTO `user` (`id`, `firstName`, `lastName`, `emailAdress`, `password`, `street`, `city` ) VALUES' +
     '(1, "first", "last", "n.name@server.nl", "secret", "DefaultStreet", "city"),' +
     '(2, "John", "Doe", "j.doe@server.com", "secret", "DefaultStreet", "city"),' +
-    '(3, "Willem", "Groot", "w.groot@server.com", "secret", "DefaultStreet", "city");';
+    '(3, "Pepa", "Big", "p.big@server.com", "secret", "DefaultStreet", "city");';
 
 /**
  * Query om twee meals toe te voegen. Let op de cookId, die moet matchen
@@ -28,8 +28,8 @@ const CLEAR_DB =
 
 const chai = require('chai')
 const chaiHttp = require('chai-http')
-const server = require('../index')
-const dbconnection = require('../src/util/mysql-db');
+const server = require('../../Index')
+const dbconnection = require('../../src/util/mysql-db');
 chai.should()
 chai.use(chaiHttp)
 

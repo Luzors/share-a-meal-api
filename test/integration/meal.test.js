@@ -2,7 +2,7 @@ process.env['DB_DATABASE'] = process.env.DB_DATABASE || 'shareamealtest';
 
 const chai = require('chai')
 const chaiHttp = require('chai-http')
-const server = require('../index')
+const server = require('../../Index')
 chai.should()
 chai.use(chaiHttp)
 

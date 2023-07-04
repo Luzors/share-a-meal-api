@@ -1,53 +1,59 @@
-const express = require("express");
-const app = express();
-const userRoutes = require('./src/routes/user.router');
-const loginRoutes = require('./src/routes/login.router');
-const mealRoutes = require('./src/routes/meal.router');
+const express = require('express');
+const assert = require('assert');
+const logger = require('./src/util/utils').logger;
+const userRoutes = require('./src/routes/user.routes');
+const mealRoutes = require('./src/routes/meal.routes');
+const authRoutes = require('./src/routes/auth.routes');
 
+const app = express();
 const port = process.env.PORT || 3000;
 
-//enable app to parse json
+// For access to application/json request body
 app.use(express.json());
 
-//when there is an invalid request
-app.all("*", (req, res) => {
-    res.status(404).json({
-        status: 404,
-        result: "Endpoint not found.",
-    });
-
-    //end response process
-    res.end();
+// Algemene route, vangt alle http-methods en alle URLs af, print
+// een message, en ga naar de next URL (indien die matcht)!
+app.use('*', (req, res, next) => {
+  const method = req.method;
+  logger.trace(`Methode ${method} is aangeroepen`);
+  next();
 });
 
 // Info endpoints
 app.get('/api/info', (req, res) => {
-    logger.info('Get server information');
-    res.status(201).json({
-      status: 201,
-      message: 'Server info-endpoint',
-      data: {
-        studentName: 'Jorn',
-        studentNumber: 2182902,
-        description: 'Dit is de share-a-meal API van Jorn van Bommel.'
-      }
-    });
+  logger.info('Get server information');
+  res.status(201).json({
+    status: 201,
+    message: 'Server info-endpoint',
+    data: {
+      studentName: 'Kelvin',
+      studentNumber: 2205954,
+      description: 'Welkom bij de server API van de share a meal.'
+    }
   });
-
-//error handler
-app.use((err, req, res, next) => {
-    res.status(err.status).json(err);
 });
 
-//Routes
+// Hier staan de referenties naar de routes
+app.use('/api', authRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/login', loginRoutes);
 app.use('/api/meal', mealRoutes);
 
-//make server listen to given port
-app.listen(port, () => {
-    console.log("Server running at " + port);
+
+// Wanneer geen enkele endpoint matcht kom je hier terecht. Dit is dus
+// een soort 'afvoerputje' (sink) voor niet-bestaande URLs in de server.
+app.use('*', (req, res) => {
+  logger.warn('Invalid endpoint called: ', req.path);
+  res.status(404).json({
+    status: 404,
+    message: 'Endpoint not found',
+    data: {}
+  });
 });
 
-//export app for testing
+// Start de server
+app.listen(port, () => {
+  logger.info(`Example app listening on port ${port}`);
+});
+
+// Export de server zodat die in de tests beschikbaar is.
 module.exports = app;
