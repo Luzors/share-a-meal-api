@@ -53,7 +53,7 @@ const userController = {
 
       await database.exQuery(query);
 
-      const statusCode = 200;
+      const statusCode = 201;
 
       console.log(statusCode); // Check the value of statusCode
 
@@ -72,12 +72,25 @@ const userController = {
     }
   },
   deleteUser: async (req, res, next) => {
-    logger.info("i am here")
+    logger.info("Deleting user")
       try {
-
+        const tokenId = req.body.id;
+        const isDeleted = await database.exQuery(`DELETE FROM user WHERE id = '${tokenId}';`)
+        console.log(isDeleted);
+        if(isDeleted.affectedRows > 0){
+          console.log("Delete succesfull")
+          res.status(200).json({
+            status: 200,
+            message: 'Deleted user from database',
+            data: ''
+          });
+        } else {
+          console.log("No rows affected")
+        }
         
       } catch (error) {
-        
+        console.error('An error has occured whilst deleting.')
+        res.status(500).send('Could not delete user');
       }
   }
 };
