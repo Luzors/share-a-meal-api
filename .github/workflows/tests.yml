@@ -73,4 +73,3 @@ jobs:
         with:
           serviceId: srv-chej97ak728m8k3p14u0
           apiKey: ${{ secrets.RENDER_TOKEN }}
-          multipleDeployment: false
