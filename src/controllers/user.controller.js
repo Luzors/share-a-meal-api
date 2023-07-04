@@ -70,6 +70,68 @@ const userController = {
       console.error('Error posting user:', error);
       res.status(500).send('Internal Server Error');
     }
+  },  
+  getUserProfile: (req, res) => {
+    const userId = req.userId; // get user id from validated token
+  
+    logger.info(`Get user profile with id ${userId}`);
+  
+    let sqlStatement1 = 'SELECT * FROM `user` WHERE id = ?'; // get user details query
+    let sqlStatement2 = 'SELECT * FROM `meal` WHERE id = ?'; // get meals made by user query
+    
+    pool.getConnection((err, conn) => {
+      if (err) {
+        logger.error(err.message);
+        res.status(500).json({
+          status: 500,
+          message: 'Failed to connect to the database'
+        });
+        return;
+      }
+  
+      conn.query(sqlStatement1, [userId], (err, results) => {
+        if (err) {
+          pool.releaseConnection(conn);
+          logger.error(err.message);
+          res.status(500).json({
+            status: 500,
+            message: 'Failed to get user'
+          });
+          return;
+        }
+  
+        if (results.length > 0) {
+          let user = results[0];
+          conn.query(sqlStatement2, [userId], (err, results) => {
+            pool.releaseConnection(conn);
+            if (err) {
+              logger.error(err.message);
+              res.status(500).json({
+                status: 500,
+                message: 'Failed to get meals'
+              });
+              return;
+            }
+  
+            res.status(200).json({
+              status: 200,
+              message: `Loaded ${userId}`,
+              data: {
+                user: user,
+                meals: results
+              }
+            });
+          });
+        } else {
+          pool.releaseConnection(conn);
+          res.status(404).json({
+            status: 404,
+            message: `User with id ${userId} not found`,
+            data: {}
+          });
+        }
+      });
+    });
   },
   deleteUser: async (req, res, next) => {
     logger.info("Deleting user")
