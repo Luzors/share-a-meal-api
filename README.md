@@ -18,7 +18,7 @@ Clone dit project naar uw lokale machine met behulp van `git clone`.
 
 Vervolgens kunt u de nodige modules installeren met behulp van `npm install`.
 
-Om de server te starten, gebruikt u `node .\Index.js`.
+Om de server te starten, gebruikt u `node .\index.js`.
 
 ## API routes
 Hier zijn de belangrijkste routes van de API:

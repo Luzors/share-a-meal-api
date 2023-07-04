@@ -28,7 +28,7 @@ const CLEAR_DB =
 
 const chai = require('chai')
 const chaiHttp = require('chai-http')
-const server = require('../../Index')
+const server = require('../../index')
 const dbconnection = require('../../src/util/mysql-db');
 chai.should()
 chai.use(chaiHttp)

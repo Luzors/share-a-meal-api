@@ -2,7 +2,7 @@ process.env['DB_DATABASE'] = process.env.DB_DATABASE || 'shareamealtest';
 
 const chai = require('chai')
 const chaiHttp = require('chai-http')
-const server = require('../../Index')
+const server = require('../../index')
 chai.should()
 chai.use(chaiHttp)
 
@@ -19,8 +19,8 @@ describe('UC-102 Informatie opvragen', function () {
           res.body.should.has.property('data');
           let { data, message } = res.body;
           data.should.be.an('object');
-          data.should.has.property('studentName').to.be.equal('Kelvin');
-          data.should.has.property('studentNumber').to.be.equal(2205954);
+          data.should.has.property('studentName').to.be.equal('Jorn');
+          data.should.has.property('studentNumber').to.be.equal(2182902);
           done();
         });
     });
