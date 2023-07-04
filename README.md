@@ -1,8 +1,8 @@
 # Projecttitel: Maaltijd-API
 
 ## Studentgegevens
-Naam: Kelvin  
-Studentnummer: 2205954
+Naam: Jorn  
+Studentnummer: 2182902
 
 ## Beschrijving
 Dit is een API ontwikkeld voor een applicatie die zich richt op maaltijden. Deze API stelt gebruikers in staat om te werken met de maaltijddatabase: maaltijden toevoegen, wijzigen, verwijderen en opvragen.
@@ -25,7 +25,7 @@ Hier zijn de belangrijkste routes van de API:
 
 - `POST /api/login`: Route om in te loggen.
 - `POST /api/users`: Route om een nieuwe gebruiker te registreren.
-- `GET /api/users`: Route om een overzicht van alle gebruikers op te vragen.
+- `GET /api/user?field1=:value1&field2=:value`: Route om een overzicht van alle gebruikers op te vragen met eventuele filters.
 - `GET /api/users/profile`: Route om het profiel van de huidige gebruiker op te vragen.
 - `GET /api/users/:userId`: Route om de gegevens van een specifieke gebruiker op te vragen op basis van het ID.
 - `PUT /api/users/:userId`: Route om de gegevens van een specifieke gebruiker te wijzigen op basis van het ID.
