@@ -91,9 +91,95 @@ const mealController = {
       },
       
 // UC-302 Wijzigen van maaltijd
-    updateMeal: (req, res) => {
-      },
-    
+updateMeal: (req, res, next) => {
+  logger.trace('Update meal');
+
+  const newMeal = req.body;
+  const mealId = parseInt(req.params.mealId); // Fix: Use 'mealId' instead of 'userId'
+  logger.info(`Update meal with id ${mealId}`);
+
+  try {
+    logger.info('assert req body')
+    assert(typeof newMeal.name === 'string', 'mealName must be a string');
+    assert(typeof newMeal.description === 'string', 'description must be a string');
+    assert(typeof newMeal.price === 'number', 'price must be a number');
+    assert(typeof newMeal.dateTime === 'string', 'dateTime must be a string');
+    assert(typeof newMeal.maxAmountOfParticipants === 'number', 'maxAmountOfParticipants must be a number');
+    assert(typeof newMeal.imageUrl === 'string', 'imageUrl must be a string');
+  } catch (err) {
+    logger.warn(err.message.toString());
+    res.status(400).json({
+      status: 400,
+      message: err.message.toString(),
+    });
+    return;
+  }
+
+  logger.trace('asserts completed')
+
+  let date = new Date(newMeal.dateTime); 
+  const mysqlDateTime = date.toISOString().slice(0, 19).replace('T', ' ');
+  newMeal.dateTime = mysqlDateTime;
+
+  pool.getConnection(function (err, conn) {
+    if (err) {
+      logger.error(err.message, err.status, err.syscall, err.address, err.port);
+      next({
+        status: 500,
+        message: err.status,
+        error: err.message
+      });
+    } else {
+      let sqlStatement = "SELECT cookId FROM meal WHERE id = ?";
+      logger.trace('conn successful');
+      conn.query(sqlStatement, [mealId], (err, results, fields) => {
+        if (err) {
+          logger.error(err.message);
+          next({
+            status: 409,
+            message: err.message
+          });
+        } else {
+          const cookId = results[0].cookId; // Assuming 'cookId' is a column name in the 'meal' table
+          if (req.userId !== cookId) {
+            res.status(403).json({
+              status: 403,
+              message: 'You are not the owner of this meal',
+              data: {}
+            });
+          } else {
+            let sqlUpdateStatement = 'UPDATE `meal` SET ? WHERE `id` = ?';
+            logger.trace('conn successful');
+            conn.query(sqlUpdateStatement, [newMeal, mealId], (err, results, fields) => {
+              if (err) {
+                logger.error(err.message);
+                res.status(500).json({
+                  status: 500,
+                  message: 'Failed to update meal'
+                });
+              } else {
+                if (results.affectedRows > 0) {
+                  res.status(200).json({
+                    status: 200,
+                    message: `Meal with id ${mealId} has been updated`,
+                    data: newMeal
+                  });
+                } else {
+                  res.status(404).json({
+                    status: 404,
+                    message: `Meal with id ${mealId} not found`,
+                    data: {}
+                  });
+                }
+              }
+            });
+          }
+        }
+      });
+    }
+  });
+},
+
 // UC-303 Opvragen van alle maaltijden  
     getAllMeals: (req, res, next) => {
         logger.info('Get all meals');

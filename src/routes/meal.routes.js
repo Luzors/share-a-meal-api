@@ -8,7 +8,7 @@ const authenticationController = require('../controllers/authentication.controll
 router.post('', authenticationController.validateToken, mealController.createMeal);
 
 // UC-302 Wijzigen van maaltijd
-router.put('/:mealId', mealController.updateMeal);
+router.put('/:mealId', authenticationController.validateToken, mealController.updateMeal);
 
 // UC-303 Opvragen van alle maaltijden
 router.get('', mealController.getAllMeals);
