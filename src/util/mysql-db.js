@@ -1,13 +1,14 @@
-// get the client
 const mysql = require('mysql2');
+const logger = require('../util/utils').logger;
 
 // Create the connection pool. The pool-specific settings are the defaults
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  database: process.env.NODE_ENV==="test" ? "shareamealtest" : undefined  || process.env.DB_DATABASE || 'shareameal',
+  database: process.env.NODE_ENV==="test" ? "shareamealtest" : undefined || process.env.DB_DATABASE || 'shareameal',
   port: process.env.DB_PORT || 3306,
   password: process.env.DB_PASSWORD || '',
+  multipleStatements: true,
   waitForConnections: true,
   connectionLimit: 10,
   maxIdle: 10, // max idle connections, the default value is the same as `connectionLimit`
@@ -15,14 +16,18 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-async function exQuery(query) {
-  try {
-    const results = await pool.promise().query(query);
-    return results[0];
-  } catch (error) {
-    console.error('Error executing query:', error);
-    throw error;
-  }
-}
+pool.on('connection', function (connection) {
+  logger.debug(
+    `Connected to db '${connection.config.database}' on ${connection.config.host}`
+  );
+});
 
-module.exports = { exQuery };
+pool.on('acquire', function (connection) {
+  logger.debug('Connection %d acquired', connection.threadId);
+});
+
+pool.on('release', function (connection) {
+  logger.debug('Connection %d released', connection.threadId);
+});
+
+module.exports = pool;

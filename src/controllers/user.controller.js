@@ -1,76 +1,187 @@
-const database = require('../util/mysql-db');
-const assert = require('assert');
+const pool = require('../util/mysql-db');
 const logger = require('../util/utils').logger;
+const assert = require('assert');
 
-function emailChecker(email) {
-  // Regular expression pattern for email validation
-  const emailPattern = /^[a-zA-Z]\.[a-zA-Z0-9]+@[a-zA-Z]+\.[a-zA-Z]+$/;
-
-
-  // Test if the email matches the pattern
-  const isValidEmail = emailPattern.test(email);
-
-  return isValidEmail;
-}
 
 const userController = {
-  getAllUsers: async (req, res, next) => {
-    try {
-      logger.info('Get all users');
-
-      const statusCode = 200;
-      const users = await database.exQuery('SELECT * FROM user');
-
-      console.log(statusCode); // Check the value of statusCode
-
-      if (typeof statusCode !== 'undefined') {
-        res.status(statusCode).json({
-          status: statusCode,
-          message: 'User getAll endpoint',
-          data: users
+  getAllUsers: (req, res, next) => {
+    logger.info('Get all users');
+    
+    
+    // Initiate base SQL statement
+    let sqlStatement = 'SELECT * FROM `user`';
+    
+    // Parameters for SQL query
+    let sqlParams = [];
+  
+    // Check if there are query parameters and they don't exceed the maximum
+    const queryFields = Object.entries(req.query);
+    if (queryFields.length <= 2) {
+      if (queryFields.length > 0) {
+        sqlStatement += ' WHERE ';
+        queryFields.forEach((field, index) => {
+          if (index !== 0) {
+            sqlStatement += ' AND ';
+          }
+          
+          // Handle isActive field specifically
+          if (field[0] === 'isActive') {
+            if (field[1].toLowerCase() === 'true') {
+              sqlStatement += `${field[0]} = ?`;
+              sqlParams.push(1);
+            } else if (field[1].toLowerCase() === 'false') {
+              sqlStatement += `${field[0]} = ?`;
+              sqlParams.push(0);
+            } else {
+              // handle error: isActive is not true or false
+              res.status(400).json({
+                status: 400,
+                message: 'Invalid value for isActive. It should be either true or false.',
+              });
+              return;
+            }
+          } else {
+            // For all other fields
+            sqlStatement += `${field[0]} = ?`;
+            sqlParams.push(field[1]);
+          }
+        });
+      }
+    } else {
+      res.status(400).json({
+        status: 400,
+        message: 'Too many query parameters. Maximum is 2.',
+      });
+      return;
+    }
+  
+    pool.getConnection(function (err, conn) {
+      if (err) {
+        logger.error(err.message);
+        next({
+          status: 500,
+          message: 'Failed to connect to the database',
         });
       } else {
-         res.status(500).send('Internal Server Error');
+        conn.query(sqlStatement, sqlParams, function (err, results, fields) {
+          pool.releaseConnection(conn);
+          if (err) {
+            logger.error(err.message);
+            next({
+              status: 500,
+              message: 'Failed to retrieve user data',
+            });
+          } else if (results) {
+            // Filter the results: replace the password with 'hidden' for all other users
+            const authenticatedUserId = req.userId;  // Assuming you stored the authenticated user's ID here
+            results.forEach(user => {
+              if (user.id !== authenticatedUserId) {
+                user.password = 'hidden';
+              }
+            });
+            
+            logger.info('Found', results.length, 'results');
+            res.status(200).json({
+              status: 200,
+              message: 'User data endpoint',
+              data: results,
+            });
+          }
+        });
       }
-    } catch (error) {
-      // Handle any errors that occurred during the query or processing
-      console.error('Error getting users:', error);
-      res.status(500).send('Internal Server Error');
+    });
+  },
+
+  createUser: (req, res) => {
+    logger.info('Register user');
+  
+    const user = req.body;
+    logger.debug('user = ', user);
+  
+    try {
+      // Validation
+      assert(user.firstName && typeof user.firstName === 'string' && user.firstName.trim().length > 0 , 'Required field missing')
+      assert(user.lastName && typeof user.lastName === 'string' && user.lastName.trim().length > 0 , 'Required field missing')
+
+      // email address validation
+      assert(typeof user.emailAdress === 'string' && user.emailAdress.trim().length > 0, 'emailAdress must be a string')
+      assert(/^[a-zA-Z]\.[a-zA-Z]{2,}@[a-zA-Z]{2,}\.[a-zA-Z]{2,3}$/.test(user.emailAdress), 'emailAdress is not valid (e.example@test.nl)');
+
+      // password validation
+      assert(typeof user.password === 'string' && user.password.trim().length > 0, 'password must be a string')
+      assert(user.password.length >= 8, 'password must be at least 8 characters long')
+      assert(/[A-Z]/.test(user.password), 'password must contain at least one uppercase letter')
+      assert(/[0-9]/.test(user.password), 'password must contain at least one number')
+
+      // phoneNumber validation
+      assert(typeof user.phoneNumber === 'string' && user.phoneNumber.trim().length > 0 , 'phoneNumber must be a string')
+      assert(/^06[- ]?\d{8}$/.test(user.phoneNumber), 'phoneNumber is not valid');
+
+
+  
+      pool.query('SELECT * FROM `user` WHERE `emailAdress` = ?', [user.emailAdress], (err, result) => {
+        if (err) {
+          logger.error(err.message);
+          res.status(500).json({ 
+            status: 500, 
+            message: 'Failed to search for emailAdress in the database' 
+          });
+          return;
+        }   
+  
+        try {
+          assert(result.length === 0, 'User already exists')
+          const sqlStatement = 'INSERT INTO `user` SET ?'
+          pool.getConnection((err, conn) => {
+            if (err) {
+              logger.error(err.message);
+              res.status(500).json({ 
+                status: 500, 
+                message: 'Failed to connect to the database' 
+              });
+              return;
+            }
+  
+            conn.query(sqlStatement, user, (err, result) => {
+              if (err) {
+                logger.error(err.message);
+                res.status(500).json({ 
+                  status: 500, 
+                  message: 'Failed to insert user data into the database' ,
+                  error: err.message
+                });
+                return;
+              }
+  
+              user.id = result.insertId;
+              logger.info('User registered successfully with ID:', result.insertId)
+              res.status(201).json({ 
+                status: 201, 
+                message: 'Successfully registered user', 
+                data: user 
+              });
+            })
+            pool.releaseConnection(conn);
+          });
+        } catch (err) {
+          logger.warn(err.message)
+          res.status(403).json({
+            status: 403,
+            message: err.message 
+          });
+          return;
+        }
+      });
+    } catch (err) {
+      logger.warn(err.message)
+      res.status(400).json({
+        status: 400,
+        message: err.message 
+      });
+      return;
     }
   },
-  postUser: async (req, res, next) => {
-    if(!emailChecker(req.body.emailAdress)){
-      console.log('Empty or invalid email');
-      return res.status(401).json({ message: 'Empty or invalid email' });
-}
-    try {
-      logger.info('Post user');
-
-      const { firstName, lastName, emailAdress, password, street, city } = req.body;
-      logger.info(req.body);
-      
-      const query = `INSERT INTO user (firstName, lastName, emailAdress, password, street, city) VALUES ('${firstName}', '${lastName}', '${emailAdress}', '${password}', '${street}', '${city}')`;
-
-      await database.exQuery(query);
-
-      const statusCode = 201;
-
-      console.log(statusCode); // Check the value of statusCode
-
-      if (typeof statusCode !== 'undefined') {
-        res.status(statusCode).json({
-          status: statusCode,
-          message: 'Posted user to database',
-          data: ''
-        });
-      } else {
-        res.status(500).send('Internal Server Error');
-      }
-    } catch (error) {
-      console.error('Error posting user:', error);
-      res.status(500).send('Internal Server Error');
-    }
-  },  
+  
   getUserProfile: (req, res) => {
     const userId = req.userId; // get user id from validated token
   
@@ -133,28 +244,192 @@ const userController = {
       });
     });
   },
-  deleteUser: async (req, res, next) => {
-    logger.info("Deleting user")
-      try {
-        const tokenId = req.body.id;
-        const isDeleted = await database.exQuery(`DELETE FROM user WHERE id = '${tokenId}';`)
-        console.log(isDeleted);
-        if(isDeleted.affectedRows > 0){
-          console.log("Delete succesfull")
+
+  getUserById: (req, res) => {
+    const userId = parseInt(req.params.userId);
+    // Get authenticated user's ID
+    const authenticatedUserId = Number(req.userId);
+    let sqlStatement = 'SELECT * FROM `user` WHERE id = ?';
+    pool.getConnection((err, conn) => {
+      if (err) {
+        logger.error(err.message);
+        res.status(500).json({
+          status: 500,
+          message: 'Failed to connect to the database'
+        });
+        return;
+      }
+
+      conn.query(sqlStatement, [userId], (err, results) => {
+        pool.releaseConnection(conn);
+        if (err) {
+          logger.error(err.message);
+          res.status(500).json({
+            status: 500,
+            message: 'Failed to retrieve user'
+          });
+          return;
+        }
+
+        if (results.length > 0) {
+          // Hide password if authenticated user is not the same as requested user
+          if (results[0].id !== authenticatedUserId) {
+            results[0].password = 'hidden';
+          }
           res.status(200).json({
             status: 200,
-            message: 'Deleted user from database',
-            data: ''
+            message: `User with id ${userId} found`,
+            data: results[0]
           });
         } else {
-          console.log("No rows affected")
+          res.status(404).json({
+            status: 404,
+            message: `User with id ${userId} not found`,
+            data: {}
+          });
         }
-        
-      } catch (error) {
-        console.error('An error has occured whilst deleting.')
-        res.status(500).send('Could not delete user');
+      });
+    });
+  },
+
+  updateUser: (req, res) => {
+    const userId = parseInt(req.params.userId);
+    const updatedUser = req.body;
+    logger.info(`Update user with id ${userId}`);
+
+    if (req.userId !== userId) {
+      res.status(403).json({
+        status: 403,
+        message: 'You are not the owner of this account',
+        data: {}
+      });
+      return;
+    }
+
+    if (!updatedUser.emailAdress) {
+      res.status(400).json({
+        status: 400,
+        message: 'Required field "emailAdress" is missing'
+      });
+      return;
+    }
+       // Perform email validation checks
+    try {
+      assert(typeof updatedUser.emailAdress === 'string' && updatedUser.emailAdress.trim().length > 0, 'emailAdress must be a string');
+      assert(/^[a-zA-Z]\.[a-zA-Z]{2,}@[a-zA-Z]{2,}\.[a-zA-Z]{2,3}$/.test(updatedUser.emailAdress), 'emailAdress is not valid (e.example@test.nl)');
+    } catch (error) {
+      res.status(400).json({
+        status: 400,
+        message: error.message
+      });
+      return;
+    }
+
+      // Perform phone number validation checks if phone number is being updated
+  if (updatedUser.phoneNumber) {
+    try {
+      assert(typeof updatedUser.phoneNumber === 'string' && updatedUser.phoneNumber.trim().length > 0 , 'phoneNumber must be a string');
+      assert(/^06[- ]?\d{8}$/.test(updatedUser.phoneNumber), 'phoneNumber is not valid');
+    } catch (error) {
+      res.status(400).json({
+        status: 400,
+        message: error.message
+      });
+      return;
+    }
+  }
+    
+    let sqlStatement = 'UPDATE `user` SET ? WHERE `id` = ?';
+    pool.getConnection((err, conn) => {
+      if (err) {
+        logger.error(err.message);
+        res.status(500).json({
+          status: 500,
+          message: 'Failed to connect to the database'
+        });
+        return;
       }
+  
+      conn.query(sqlStatement, [updatedUser, userId], (err, results) => {
+        pool.releaseConnection(conn);
+        if (err) {
+          logger.error(err.message);
+          res.status(500).json({
+            status: 500,
+            message: 'Failed to update user'
+          });
+          return;
+        }
+  
+        if (results.affectedRows > 0) {
+          res.status(200).json({
+            status: 200,
+            message: `User with id ${userId} has been updated`,
+            data: updatedUser
+          });
+        } else {
+          res.status(404).json({
+            status: 404,
+            message: `User with id ${userId} not found`,
+            data: {}
+          });
+        }
+      });
+    });
+  },
+
+  deleteUser: (req, res) => {
+    const userId = parseInt(req.params.userId);
+    logger.info(`Delete user with id ${userId}`);
+
+    if (req.userId !== userId) {
+      res.status(403).json({
+        status: 403,
+        message: 'You are not the owner of this account',
+        data: {}
+      });
+      return;
+    }
+
+    let sqlStatement = 'DELETE FROM `user` WHERE id = ?';
+    pool.getConnection((err, conn) => {
+      if (err) {
+        logger.error(err.message);
+        res.status(500).json({
+          status: 500,
+          message: 'Failed to connect to the database'
+        });
+        return;
+      }
+
+      conn.query(sqlStatement, [userId], (err, results) => {
+        pool.releaseConnection(conn);
+        if (err) {
+          logger.error(err.message);
+          res.status(500).json({
+            status: 500,
+            message: 'Failed to delete user'
+          });
+          return;
+        }
+
+        if (results.affectedRows > 0) {
+          res.status(200).json({
+            status: 200,
+            message: `User with id ${userId} has been deleted`,
+            data: {}
+          });
+        } else {
+          res.status(404).json({
+            status: 404,
+            message: `User with id ${userId} not found`,
+            data: {}
+          });
+        }
+      });
+    });
   }
 };
+
 
 module.exports = userController;

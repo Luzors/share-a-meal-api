@@ -10,7 +10,10 @@ router.post('/', userController.postUser);
 router.get('/', authenticateTokenAndPassUser, userController.getAllUsers);
 
 // UC-203 Opvragen van gebruikersprofiel
-router.get('/profile', authenticateTokenAndPassUser ,userController.getUserProfile);
+router.get('/profile', authenticateTokenAndPassUser, userController.getUserProfile);
+
+// UC-204 Opvragen van usergegevens bij ID
+router.get('/:userId', authenticateTokenAndPassUser , userController.getUserById);
 
 // UC-206 Verwijderen van user
 router.delete('/', authenticateTokenAndPassUser, userController.deleteUser);
