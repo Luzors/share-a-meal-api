@@ -3,23 +3,23 @@ name: Testing and deployment
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   integrationtests:
     runs-on: ubuntu-latest
     env:
       MYSQL_ROOT_PASSWORD: root # default root password to use must be 'root'
-      DB_HOST: '127.0.0.1'
-      DB_PORT: '3306'
-      DB_DATABASE: share_a_meal
+      DB_HOST: "127.0.0.1"
+      DB_PORT: "3306"
+      DB_DATABASE: shareamealtest
       DB_USER: root
       DB_PASSWORD: root
     services:
       mysql:
         image: mysql:5.7
         ports:
-          - '3306'
+          - "3306"
     steps:
       - uses: actions/checkout@main
 
@@ -41,7 +41,13 @@ jobs:
 
       - name: npm test
         run: |
-          npm test -- --DB_PASSWORD {{env.MYSQL_ROOT_PASSWORD}} --DB_USER root --DB_NAME ${{env.DB_DATABASE}}
+          chmod +x ./node_modules/.bin/mocha
+          chmod +x ./node_modules/.bin/cross-env
+          npm test
+        env:
+          DB_PASSWORD: ${{ env.MYSQL_ROOT_PASSWORD }}
+          DB_USER: root
+          DB_NAME: ${{ env.DB_DATABASE }}
 
   #   Heroku-deploy:
   #     needs: integrationtests
@@ -76,3 +82,4 @@ jobs:
   #       run: railway up
   #       env:
   #         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+#
