@@ -1,25 +1,76 @@
-name: Run the integration tests
+name: Node.js CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
 
 jobs:
+  # build:
+  #
+  #   runs-on: ubuntu-latest
+  #
+  #    strategy:
+  #       matrix:
+  #         node-version: [14.x, 16.x, 18.x]
+  #   See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+  #
+  #    steps:
+  #    - uses: actions/checkout@v3
+  #    - name: Use Node.js ${{ matrix.node-version }}
+  #       uses: actions/setup-node@v3
+  #       with:
+  #       node-version: ${{ matrix.node-version }}
+  #       cache: 'npm'
+  #   - run: npm ci
+  #   - run: npm run build --if-present
+  #   - run: npm test
+
   integrationtests:
     runs-on: ubuntu-latest
+    
+    env:
+      MYSQL_ROOT_PASSWORD: root # default root password to use must be 'root'
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: shareamealtest
+      DB_USER: root
+      DB_PASSWORD: root
+    services:
+      mysql:
+        image: mysql:5.7
+        ports:
+          - 3306
     steps:
-      # Checkout the Repo
       - uses: actions/checkout@v2
 
-      # Install Node 18
-      - name: Setup Node
-        uses: actions/setup-node@v1
+      - name: Start MySQL connection from host
+        run: |
+          sudo /etc/init.d/mysql start
+          sudo apt-get install -y mysql-client
+          mysql -uroot -p${{ env.MYSQL_ROOT_PASSWORD }} -e "SHOW DATABASES;"
+          mysql -uroot -p${{ env.MYSQL_ROOT_PASSWORD }} -e "CREATE DATABASE ${{env.DB_DATABASE}};"
+      - name: Import database script
+        run: |
+          mysql -uroot -p${{env.MYSQL_ROOT_PASSWORD}} ${{env.DB_DATABASE}} < share-a-meal.sql
+          mysql -uroot -p${{env.MYSQL_ROOT_PASSWORD}} ${{env.DB_DATABASE}} -e "SHOW TABLES;"
+      - name: npm install
+        run: |
+          npm install
+      - name: npm test
+        run: |
+          npm test -- --DB_PASSWORD $MYSQL_ROOT_PASSWORD --DB_USER root --DB_NAME $DB_DATABASE
+
+  Render-deploy:
+    needs: integrationtests
+    runs-on: ubuntu-latest
+    environment:
+      name: Render # naam van mijn environment op GitHub
+    steps:
+      - name: Trigger deployment
+        uses: sws2apps/render-deployment@main
         with:
-          node-version: 18
-
-      # Install dependencies
-      - run: npm install
-
-      # Run tests
-      - run: npm test
+          serviceId: srv-chej97ak728m8k3p14u0
+          apiKey: ${{ secrets.RENDER_TOKEN }}
+          multipleDeployment: false
