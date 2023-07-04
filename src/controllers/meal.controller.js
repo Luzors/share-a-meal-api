@@ -95,17 +95,13 @@ updateMeal: (req, res, next) => {
   logger.trace('Update meal');
 
   const newMeal = req.body;
-  const mealId = parseInt(req.params.mealId); // Fix: Use 'mealId' instead of 'userId'
+  const mealId = parseInt(req.params.mealId); 
   logger.info(`Update meal with id ${mealId}`);
-
   try {
     logger.info('assert req body')
     assert(typeof newMeal.name === 'string', 'mealName must be a string');
-    assert(typeof newMeal.description === 'string', 'description must be a string');
     assert(typeof newMeal.price === 'number', 'price must be a number');
-    assert(typeof newMeal.dateTime === 'string', 'dateTime must be a string');
     assert(typeof newMeal.maxAmountOfParticipants === 'number', 'maxAmountOfParticipants must be a number');
-    assert(typeof newMeal.imageUrl === 'string', 'imageUrl must be a string');
   } catch (err) {
     logger.warn(err.message.toString());
     res.status(400).json({
@@ -116,10 +112,6 @@ updateMeal: (req, res, next) => {
   }
 
   logger.trace('asserts completed')
-
-  let date = new Date(newMeal.dateTime); 
-  const mysqlDateTime = date.toISOString().slice(0, 19).replace('T', ' ');
-  newMeal.dateTime = mysqlDateTime;
 
   pool.getConnection(function (err, conn) {
     if (err) {
@@ -140,7 +132,7 @@ updateMeal: (req, res, next) => {
             message: err.message
           });
         } else {
-          const cookId = results[0].cookId; // Assuming 'cookId' is a column name in the 'meal' table
+          const cookId = results[0].cookId;
           if (req.userId !== cookId) {
             res.status(403).json({
               status: 403,
