@@ -132,8 +132,7 @@ updateMeal: (req, res, next) => {
             message: err.message
           });
         } else {
-          const cookId = results[0].cookId;
-          if (req.userId !== cookId) {
+          if (results[0] && req.userId !== results[0].cookId) {
             res.status(403).json({
               status: 403,
               message: 'You are not the owner of this meal',
